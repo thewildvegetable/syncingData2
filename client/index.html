@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        #mainCanvas {
+             background: #ffffff;
+             position:absolute;
+             z-index: 0;
+             left: 10px;
+             top: 10px;
+             box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+    <script type="text/babel" >
+        "use strict";
+        let socket;
+        let ctx;
+        let canvas;
+        let draws = {};
+        let mouseDown = false;
+        
+        const draw = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let keys = Object.keys(draws);
+            
+            for (let i = 0; i < keys.length; i++){
+                const drawCall = draws[keys[i]];
+                ctx.fillStyle = drawCall.color;
+                ctx.fillRect(drawCall.x, drawCall.y, drawCall.width, drawCall.height);
+            }
+            ctx.fillStyle = "white";
+        };
+
+        const setCalls = (time) => {
+            let coords = draws[time];
+            
+            socket.emit('draw', {time: time, coords: coords});
+            draw();
+        };
+        
+        const handleMessage = (data) => {
+            let coords = data.coords;
+            coords.color = "red";
+            draws[data.time] = coords;
+            draw();
+        };
+        
+        // Function Name: getMouse()
+        // returns mouse position in local coordinate system of element
+        // Author: Tony Jefferson
+        // Last update: 3/1/2014
+        const getMouse = (e) => {
+            var mouse = {}
+            mouse.x = e.pageX - e.target.offsetLeft;
+            mouse.y = e.pageY - e.target.offsetTop;
+            return mouse;
+        }
+        
+        const doMousedown = (e) => {
+            //get location of mouse
+            var mouse = getMouse(e);
+            
+            //if the mouse wasnt already being held, make a square at the mouse position
+            if(!mouseDown){
+                let time = new Date().getTime();
+                draws[time] = {x: mouse.x, y: mouse.y, width:100, height:100, color: "black"};
+                setCalls(time);
+            }
+            
+            mouseDown = true;
+        };
+
+        const doMouseup = (e) => {
+            mouseDown = false
+        };
+        
+        const init = () => {
+            // set up canvas stuff
+			canvas = document.querySelector('canvas');
+            //canvas resizing code from https://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
+            var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+            var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+            canvas.height = height;
+            canvas.width = width;
+			ctx = canvas.getContext("2d");
+            canvas.onmousedown = doMousedown;
+            canvas.onmouseup = doMouseup;
+            
+            socket = io.connect();
+            
+            socket.on('connect', () => {
+                console.log('connecting');
+                
+                socket.emit('join', draws);
+                
+            });
+            
+            socket.on('msg', (data) => {
+                handleMessage(data);
+            });
+        };
+        
+        window.onload = init;
+    </script>
+</head>
+<body>
+    <canvas id="mainCanvas" width="700" height="500">
+	Get a real browser!
+	</canvas>
+</body>
+</html>

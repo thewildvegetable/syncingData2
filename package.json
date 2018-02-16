@@ -1,0 +1,29 @@
+{
+  "name": "canvas-syncing-assignment-part2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./src/server.js",
+    "pretest": "eslint ./src --fix",
+    "test": "echo \"Tests complete\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thewildvegetable/canvas-syncing-assignment-part2.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/thewildvegetable/canvas-syncing-assignment-part2/issues"
+  },
+  "homepage": "https://github.com/thewildvegetable/canvas-syncing-assignment-part2#readme",
+  "dependencies": {
+    "socket.io": "^2.0.4"
+  },
+  "devDependencies": {
+    "eslint": "^4.17.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.8.0"
+  }
+}
