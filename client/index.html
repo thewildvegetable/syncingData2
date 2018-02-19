@@ -4,7 +4,6 @@
     <style>
         #mainCanvas {
              background: #ffffff;
-             position:absolute;
              z-index: 0;
              left: 10px;
              top: 10px;
@@ -35,6 +34,10 @@
         const handleMessage = (data) => {
             square = data;
             
+            //turn clicking back on
+            mouseDown = false;
+            console.dir("clicking reenabled");
+            
             draw();
         };
         
@@ -57,18 +60,19 @@
             if(!mouseDown){
                 //if the click was in the square, send it to the server for points;
                 if (mouse.x >= square.x && mouse.x <= square.x + square.width){
-                    if (mouse.y >= square.y && mouse.x <= square.y + square.height){
+                    console.dir("clicked in the x area");
+                    if (mouse.y >= square.y && mouse.y <= square.y + square.height){
                         socket.emit('click', square);
+                        console.dir("clicked in the square");
+                        //prevent extra clicks
+                        mouseDown = true;
                     }
                 }
             }
             
-            mouseDown = true;
-        };
-        
-        //avoids multiclicking
-        const doMouseup = (e) => {
-            mouseDown = false
+            console.dir(mouseDown);
+            
+            
         };
         
         const init = () => {
@@ -80,7 +84,6 @@
 			canvas = document.querySelector('canvas');
 			ctx = canvas.getContext("2d");
             canvas.onmousedown = doMousedown;
-            canvas.onmouseup = doMouseup;
             
             socket = io.connect();
             
@@ -113,5 +116,6 @@
     <canvas id="mainCanvas" width="700" height="500">
 	Get a real browser!
 	</canvas>
+    
 </body>
 </html>
