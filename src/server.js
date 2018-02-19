@@ -25,7 +25,7 @@ const square = {
 };
 
 let clicked = false;        //make true after the first click message to avoid making multiple setTimers
-let users = {};
+let users = {};     //users who clicked the square
 
 //make a new square
 const newSquare = () => {
@@ -36,7 +36,21 @@ const newSquare = () => {
 
 //figure out which socket was the first submission
 const determineFirstSubmission = () => {
+    let firstSocket;        //earliest click user
     
+    //foreach of users here
+    if (user.time < firstSocket.time){
+        firstSocket = user;
+    }
+    
+    
+    //send the first person their points
+    firstSocket.emit('point', { "score": 1, "first": true });
+    
+    //generate new square and send it ot the users
+    newSquare();
+    clicked = false;
+    io.sockets.in('room1').emit('draw', square);
 };
 
 const io = socketio(app);
@@ -47,7 +61,10 @@ const onJoined = (sock) => {
   socket.on('join', (user) => {
       
     socket.join('room1');
-      users[user] = socket;
+      //set the users name
+      socket.name = user;
+      
+      //send the square
       socket.emit('draw', square);
   });
 };
@@ -56,7 +73,26 @@ const onUpdate = (sock) => {
   const socket = sock;
 
   socket.on('click', (data) => {
-    socket.broadcast.to('room1').emit('msg', data);
+      //check that the square the user clicked is the same squafe currently stored
+      //if it isnt, send the correct square
+      if (data.x === square.x && data.y === square.y){
+          //set the time of the message being received and store the socket in users
+          socket.time = new Date().getTime();
+          users[socket.name] = socket;
+          //send the point for clicking to the user
+          socket.emit('point', { "score": 1, "first": false });
+          
+          //check if a click has been made, if not then set the timer for new squares
+          if (!clicked){
+              clicked = true;
+              setTimeout(determineFirstSubmission, 1000);
+          }
+      }
+      else{
+          //send the user the correct square
+          socket.emit('draw', square);
+      }
+    
   });
 };
 

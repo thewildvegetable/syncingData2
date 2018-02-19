@@ -31,12 +31,6 @@
             ctx.fillStyle = square.color;
             ctx.fillRect(square.x, square.y, square.width, square.height);
         };
-
-        const setCalls = (time) => {
-            let coords = draws[time];
-            
-            socket.emit('clicked', {time: time, coords: coords});
-        };
         
         const handleMessage = (data) => {
             square = data;
@@ -59,16 +53,20 @@
             //get location of mouse
             var mouse = getMouse(e);
             
-            //if the mouse wasnt already being held, make a square at the mouse position
+            //if the mouse wasnt already being held, check if the mouse is clicking the square
             if(!mouseDown){
-                let time = new Date().getTime();
-                draws[time] = {x: mouse.x, y: mouse.y, width:100, height:100, color: "black"};
-                setCalls(time);
+                //if the click was in the square, send it to the server for points;
+                if (mouse.x >= square.x && mouse.x <= square.x + square.width){
+                    if (mouse.y >= square.y && mouse.x <= square.y + square.height){
+                        socket.emit('click', square);
+                    }
+                }
             }
             
             mouseDown = true;
         };
-
+        
+        //avoids multiclicking
         const doMouseup = (e) => {
             mouseDown = false
         };
@@ -99,6 +97,11 @@
             
             socket.on('point', (data) => {
                 score += data.score;
+                scoreHolder.textContent = "Score: " + score;
+                
+                if (data.first){
+                    scoreHolder.textContent += ". You were the first to click the square last round!";
+                }
             });
         };
         
