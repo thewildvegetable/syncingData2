@@ -9,6 +9,10 @@
              top: 10px;
              box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
         }
+        
+        #quitButton {
+            display: none;
+        }
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
@@ -25,6 +29,7 @@
         let easyButton;
         let mediumButton;
         let hardButton;
+        let quitButton;
         
         const draw = () => {
             ctx.fillStyle = "white";
@@ -76,16 +81,66 @@
             //get the difficulty
             let difficulty = e.target.value;
             
+            //send join message        
+            socket.emit('join', difficulty);
+            
+            //hide the difficulty buttons
+            easyButton.style.display = mediumButton.style.display = hardButton.style.display = "none";
+            
+            //show a quit button
+            quitButton.style.display = "inline";
+        };
+
+        const quit = () => {
+            //show the difficulty buttons
+            easyButton.style.display = mediumButton.style.display = hardButton.style.display = "inline";
+            
+            //hide the quit button
+            quitButton.style.display = "none";
+            
+            //send quit message to server
+            socket.emit('quit', square);
+            
+            //move the square offscreen to hide it and prevent clicks
+            square.x = canvas.width + 200;
+            draw();
+            
+            //reset score
+            score = 0;
+            scoreHolder.textContent = "Score: " + score;
+        };
+        
+        const init = () => {
+            //get the score holder
+            scoreHolder = document.querySelector('#score');
+            scoreHolder.textContent = "Score: " + score;
+            
+            //get the buttons
+            easyButton = document.querySelector('#easyButton');
+            mediumButton = document.querySelector('#mediumButton');
+            hardButton = document.querySelector('#hardButton');
+            quitButton = document.querySelector('#quitButton');
+            
+            // set up canvas stuff
+			canvas = document.querySelector('canvas');
+			ctx = canvas.getContext("2d");
+            canvas.onmousedown = doMousedown;
+            
+            
             //connect to server
             socket = io.connect();
             
             socket.on('connect', () => {
                 console.log('connecting');
                 
-                socket.emit('join', difficulty);
-                
+                //hook up connection to the buttons
+                easyButton.onclick = mediumButton.onclick = hardButton.onclick = (e) => {
+                    connect(e);
+                };
+                quitButton.onclick = quit;
             });
             
+            //hook up listeners
             socket.on('draw', (data) => {
                 handleMessage(data);
             });
@@ -99,32 +154,6 @@
                     scoreHolder.textContent += ". You were the first to click the square last round!";
                 }
             });
-            
-            //hide the difficulty buttons
-            easyButton.style.display = mediumButton.style.display = hardButton.style.display = "none";
-            
-            //TODO show a quit button
-        };
-        
-        const init = () => {
-            //get the score holder
-            scoreHolder = document.querySelector('#score');
-            scoreHolder.textContent = "Score: " + score;
-            
-            //get the buttons
-            easyButton = document.querySelector('#easyButton');
-            mediumButton = document.querySelector('#mediumButton');
-            hardButton = document.querySelector('#hardButton');
-            
-            // set up canvas stuff
-			canvas = document.querySelector('canvas');
-			ctx = canvas.getContext("2d");
-            canvas.onmousedown = doMousedown;
-            
-            //hook up connection to the buttons
-            easyButton.onclick = mediumButton.onclick = hardButton.onclick = (e) => {
-                connect(e);
-            };
         };
         
         window.onload = init;
@@ -134,6 +163,7 @@
     <button id="easyButton" value="easy">Easy</button>
     <button id="mediumButton" value="medium">Medium</button>
     <button id="hardButton" value="hard">Hard</button>
+    <button id="quitButton" value="hard">Change Difficulty</button>
     <p id="score"></p>
     <canvas id="mainCanvas" width="700" height="500">
 	Get a real browser!

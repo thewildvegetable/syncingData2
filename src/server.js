@@ -25,18 +25,18 @@ const easySquare = {
 };
 
 const mediumSquare = {
-  x: Math.floor((Math.random() * (650)) + 1),
-  y: Math.floor((Math.random() * (450)) + 1),
-  width: 50,
-  height: 50,
-  color: 'red',
-};
-
-const hardSquare = {
   x: Math.floor((Math.random() * (675)) + 1),
   y: Math.floor((Math.random() * (475)) + 1),
   width: 25,
   height: 25,
+  color: 'red',
+};
+
+const hardSquare = {
+  x: Math.floor((Math.random() * (690)) + 1),
+  y: Math.floor((Math.random() * (490)) + 1),
+  width: 10,
+  height: 10,
   color: 'red',
 };
 
@@ -85,30 +85,36 @@ const determineFirstSubmission = (difficulty) => {
   // firstSocket.emit('point', { score: 1, first: true });
 
   // generate new square
-  let square = newSquare(firstSocket.difficulty);
+  let square = newSquare(difficulty);
   clicked = false;
     
     //assign square to the difficulty square
-    if (firstSocket.difficulty === "easy"){
-        easySquare = square;
+    if (difficulty === "easy"){
+        easySquare.x = square.x;
+        easySquare.y = square.y;
+        easySquare.color = square.color;
     }
-    else if (firstSocket.difficulty === "medium"){
-        mediumSquare = square;
+    else if (difficulty === "medium"){
+        mediumSquare.x = square.x;
+        mediumSquare.y = square.y;
+        mediumSquare.color = square.color;
     }
     else{
         //done as an else to avoid server dying from any odd difficulty value being passed in
-        hardSquare = square;
+        hardSquare.x = square.x;
+        hardSquare.y = square.y;
+        hardSquare.color = square.color;
     }
     
     //send the new square to the users in the difficulty room
-  io.sockets.in(`${firstSocket.difficulty}`).emit('draw', square);
+  io.sockets.in(`${difficulty}`).emit('draw', square);
 
   // empty users
   //assign square to the difficulty square
-    if (firstSocket.difficulty === "easy"){
+    if (difficulty === "easy"){
         easyClick = {};
     }
-    else if (firstSocket.difficulty === "medium"){
+    else if (difficulty === "medium"){
         mediumClick = {};
     }
     else{
@@ -124,6 +130,8 @@ const onJoined = (sock) => {
     socket.join(`${difficulty}`);
     // set the users name
     socket.difficulty = difficulty;
+      
+      console.log(`Joined ${difficulty} room`);
       
     let square;
     
@@ -148,6 +156,21 @@ const onUpdate = (sock) => {
   const socket = sock;
 
   socket.on('click', (data) => {
+      //get the correct square
+      let square;
+    
+    //assign the difficulty square to square
+    if (socket.difficulty === "easy"){
+        square = easySquare;
+    }
+    else if (socket.difficulty === "medium"){
+        square = mediumSquare;
+    }
+    else{
+        //done as an else to avoid server dying from any odd difficulty value being passed in
+        square = hardSquare;
+    }
+      
     // check that the square the user clicked is the same squafe currently stored
     // if it isnt, send the correct square
     if (data.x === square.x && data.y === square.y) {
@@ -155,10 +178,10 @@ const onUpdate = (sock) => {
       socket.time = new Date().getTime();
         
         //assign the difficulty square to square
-        if (difficulty === "easy"){
+        if (socket.difficulty === "easy"){
             easyClick[socket.name] = socket;
         }
-        else if (difficulty === "medium"){
+        else if (socket.difficulty === "medium"){
             mediumClick[socket.name] = socket;
         }
         else{
@@ -174,16 +197,16 @@ const onUpdate = (sock) => {
         clicked = true;
         setTimeout(() => {
             determineFirstSubmission(socket.difficulty);
-        }, 1000);
+        }, 500);
       }
     } else {
         let square;
     
         //assign the difficulty square to square
-        if (difficulty === "easy"){
+        if (socket.difficulty === "easy"){
             square = easySquare;
         }
-        else if (difficulty === "medium"){
+        else if (socket.difficulty === "medium"){
             square = mediumSquare;
         }
         else{
