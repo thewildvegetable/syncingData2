@@ -22,6 +22,9 @@
         let mouseDown = false;
         let score = 0;
         let scoreHolder;
+        let easyButton;
+        let mediumButton;
+        let hardButton;
         
         const draw = () => {
             ctx.fillStyle = "white";
@@ -36,7 +39,6 @@
             
             //turn clicking back on
             mouseDown = false;
-            console.dir("clicking reenabled");
             
             draw();
         };
@@ -60,37 +62,27 @@
             if(!mouseDown){
                 //if the click was in the square, send it to the server for points;
                 if (mouse.x >= square.x && mouse.x <= square.x + square.width){
-                    console.dir("clicked in the x area");
                     if (mouse.y >= square.y && mouse.y <= square.y + square.height){
                         socket.emit('click', square);
-                        console.dir("clicked in the square");
                         //prevent extra clicks
                         mouseDown = true;
                     }
                 }
             }
             
-            console.dir(mouseDown);
-            
-            
         };
-        
-        const init = () => {
-            //get the score holder
-            scoreHolder = document.querySelector('#score');
-            scoreHolder.textContent = "Score: " + score;
+
+        const connect = (e) => {
+            //get the difficulty
+            let difficulty = e.target.value;
             
-            // set up canvas stuff
-			canvas = document.querySelector('canvas');
-			ctx = canvas.getContext("2d");
-            canvas.onmousedown = doMousedown;
-            
+            //connect to server
             socket = io.connect();
             
             socket.on('connect', () => {
                 console.log('connecting');
                 
-                socket.emit('join', user);
+                socket.emit('join', difficulty);
                 
             });
             
@@ -102,16 +94,46 @@
                 score += data.score;
                 scoreHolder.textContent = "Score: " + score;
                 
+                //tell user they were first click
                 if (data.first){
                     scoreHolder.textContent += ". You were the first to click the square last round!";
                 }
             });
+            
+            //hide the difficulty buttons
+            easyButton.style.display = mediumButton.style.display = hardButton.style.display = "none";
+            
+            //TODO show a quit button
+        };
+        
+        const init = () => {
+            //get the score holder
+            scoreHolder = document.querySelector('#score');
+            scoreHolder.textContent = "Score: " + score;
+            
+            //get the buttons
+            easyButton = document.querySelector('#easyButton');
+            mediumButton = document.querySelector('#mediumButton');
+            hardButton = document.querySelector('#hardButton');
+            
+            // set up canvas stuff
+			canvas = document.querySelector('canvas');
+			ctx = canvas.getContext("2d");
+            canvas.onmousedown = doMousedown;
+            
+            //hook up connection to the buttons
+            easyButton.onclick = mediumButton.onclick = hardButton.onclick = (e) => {
+                connect(e);
+            };
         };
         
         window.onload = init;
     </script>
 </head>
 <body>
+    <button id="easyButton" value="easy">Easy</button>
+    <button id="mediumButton" value="medium">Medium</button>
+    <button id="hardButton" value="hard">Hard</button>
     <p id="score"></p>
     <canvas id="mainCanvas" width="700" height="500">
 	Get a real browser!
