@@ -42,31 +42,29 @@ const hardSquare = {
 
 let clicked = false; // make true after the first click message to avoid making multiple setTimers
 // stores users who clicked the square
-let easyClick = {}; 
-let mediumClick = {}; 
-let hardClick = {}; 
+let easyClick = {};
+let mediumClick = {};
+let hardClick = {};
 
 // make a new square
 const newSquare = (difficulty) => {
-    let square;
-    
-    //assign the difficulty square to square
-    if (difficulty === "easy"){
-        square = easySquare;
-    }
-    else if (difficulty === "medium"){
-        square = mediumSquare;
-    }
-    else{
-        //done as an else to avoid server dying from any odd difficulty value being passed in
-        square = hardSquare;
-    }
-    
+  let square;
+
+  // assign the difficulty square to square
+  if (difficulty === 'easy') {
+    square = easySquare;
+  } else if (difficulty === 'medium') {
+    square = mediumSquare;
+  } else {
+    // done as an else to avoid server dying from any odd difficulty value being passed in
+    square = hardSquare;
+  }
+
   square.x = Math.floor((Math.random() * (700 - square.width)) + 1);
   square.y = Math.floor((Math.random() * (500 - square.height)) + 1);
   square.color = `rgb(${Math.floor((Math.random() * 255) + 1)},${Math.floor((Math.random() * 255) + 1)},${Math.floor((Math.random() * 255) + 1)})`;
-    
-    return square;
+
+  return square;
 };
 
 const io = socketio(app);
@@ -85,42 +83,38 @@ const determineFirstSubmission = (difficulty) => {
   // firstSocket.emit('point', { score: 1, first: true });
 
   // generate new square
-  let square = newSquare(difficulty);
+  const square = newSquare(difficulty);
   clicked = false;
-    
-    //assign square to the difficulty square
-    if (difficulty === "easy"){
-        easySquare.x = square.x;
-        easySquare.y = square.y;
-        easySquare.color = square.color;
-    }
-    else if (difficulty === "medium"){
-        mediumSquare.x = square.x;
-        mediumSquare.y = square.y;
-        mediumSquare.color = square.color;
-    }
-    else{
-        //done as an else to avoid server dying from any odd difficulty value being passed in
-        hardSquare.x = square.x;
-        hardSquare.y = square.y;
-        hardSquare.color = square.color;
-    }
-    
-    //send the new square to the users in the difficulty room
+
+  // assign square to the difficulty square
+  if (difficulty === 'easy') {
+    easySquare.x = square.x;
+    easySquare.y = square.y;
+    easySquare.color = square.color;
+  } else if (difficulty === 'medium') {
+    mediumSquare.x = square.x;
+    mediumSquare.y = square.y;
+    mediumSquare.color = square.color;
+  } else {
+    // done as an else to avoid server dying from any odd difficulty value being passed in
+    hardSquare.x = square.x;
+    hardSquare.y = square.y;
+    hardSquare.color = square.color;
+  }
+
+  // send the new square to the users in the difficulty room
   io.sockets.in(`${difficulty}`).emit('draw', square);
 
   // empty users
-  //assign square to the difficulty square
-    if (difficulty === "easy"){
-        easyClick = {};
-    }
-    else if (difficulty === "medium"){
-        mediumClick = {};
-    }
-    else{
-        //done as an else to avoid server dying from any odd difficulty value being passed in
-        hardClick = {};
-    }
+  // assign square to the difficulty square
+  if (difficulty === 'easy') {
+    easyClick = {};
+  } else if (difficulty === 'medium') {
+    mediumClick = {};
+  } else {
+    // done as an else to avoid server dying from any odd difficulty value being passed in
+    hardClick = {};
+  }
 };
 
 const onJoined = (sock) => {
@@ -130,23 +124,21 @@ const onJoined = (sock) => {
     socket.join(`${difficulty}`);
     // set the users name
     socket.difficulty = difficulty;
-      
-      console.log(`Joined ${difficulty} room`);
-      
+
+    console.log(`Joined ${difficulty} room`);
+
     let square;
-    
-    //assign the difficulty square to square
-    if (difficulty === "easy"){
-        square = easySquare;
+
+    // assign the difficulty square to square
+    if (difficulty === 'easy') {
+      square = easySquare;
+    } else if (difficulty === 'medium') {
+      square = mediumSquare;
+    } else {
+      // done as an else to avoid server dying from any odd difficulty value being passed in
+      square = hardSquare;
     }
-    else if (difficulty === "medium"){
-        square = mediumSquare;
-    }
-    else{
-        //done as an else to avoid server dying from any odd difficulty value being passed in
-        square = hardSquare;
-    }
-      
+
     // send the square
     socket.emit('draw', square);
   });
@@ -156,39 +148,35 @@ const onUpdate = (sock) => {
   const socket = sock;
 
   socket.on('click', (data) => {
-      //get the correct square
-      let square;
-    
-    //assign the difficulty square to square
-    if (socket.difficulty === "easy"){
-        square = easySquare;
+    // get the correct square
+    let square;
+
+    // assign the difficulty square to square
+    if (socket.difficulty === 'easy') {
+      square = easySquare;
+    } else if (socket.difficulty === 'medium') {
+      square = mediumSquare;
+    } else {
+      // done as an else to avoid server dying from any odd difficulty value being passed in
+      square = hardSquare;
     }
-    else if (socket.difficulty === "medium"){
-        square = mediumSquare;
-    }
-    else{
-        //done as an else to avoid server dying from any odd difficulty value being passed in
-        square = hardSquare;
-    }
-      
+
     // check that the square the user clicked is the same squafe currently stored
     // if it isnt, send the correct square
     if (data.x === square.x && data.y === square.y) {
       // set the time of the message being received and store the socket in users
       socket.time = new Date().getTime();
-        
-        //assign the difficulty square to square
-        if (socket.difficulty === "easy"){
-            easyClick[socket.name] = socket;
-        }
-        else if (socket.difficulty === "medium"){
-            mediumClick[socket.name] = socket;
-        }
-        else{
-            //done as an else to avoid server dying from any odd difficulty value being passed in
-            hardClick[socket.name] = socket;
-        }
-      
+
+      // assign the difficulty square to square
+      if (socket.difficulty === 'easy') {
+        easyClick[socket.name] = socket;
+      } else if (socket.difficulty === 'medium') {
+        mediumClick[socket.name] = socket;
+      } else {
+        // done as an else to avoid server dying from any odd difficulty value being passed in
+        hardClick[socket.name] = socket;
+      }
+
       // send the point for clicking to the user
       socket.emit('point', { score: 1, first: false });
 
@@ -196,23 +184,10 @@ const onUpdate = (sock) => {
       if (!clicked) {
         clicked = true;
         setTimeout(() => {
-            determineFirstSubmission(socket.difficulty);
+          determineFirstSubmission(socket.difficulty);
         }, 500);
       }
     } else {
-        let square;
-    
-        //assign the difficulty square to square
-        if (socket.difficulty === "easy"){
-            square = easySquare;
-        }
-        else if (socket.difficulty === "medium"){
-            square = mediumSquare;
-        }
-        else{
-            //done as an else to avoid server dying from any odd difficulty value being passed in
-            square = hardSquare;
-        }
       // send the user the correct square
       socket.emit('draw', square);
     }
@@ -220,14 +195,13 @@ const onUpdate = (sock) => {
 };
 
 const onDisconnect = (sock) => {
-    const socket = sock;
-    
-    socket.on('disconnect', () => {
-        // remove user from the room
-        //delete users.online[socket.name];
-        socket.leave(`${socket.difficulty}`);
-    });
-    
+  const socket = sock;
+
+  socket.on('disconnect', () => {
+    // remove user from the room
+    // delete users.online[socket.name];
+    socket.leave(`${socket.difficulty}`);
+  });
 };
 
 io.sockets.on('connection', (socket) => {
@@ -235,7 +209,7 @@ io.sockets.on('connection', (socket) => {
 
   onJoined(socket);
   onUpdate(socket);
-    onDisconnect(socket);
+  onDisconnect(socket);
 });
 
 console.log('Websocket server started');
