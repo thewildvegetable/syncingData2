@@ -19,7 +19,8 @@
   },
   "homepage": "https://github.com/thewildvegetable/syncingData2#readme",
   "dependencies": {
-    "socket.io": "^2.0.4"
+    "socket.io": "^2.0.4",
+    "xxhashjs": "^0.2.2"
   },
   "devDependencies": {
     "eslint": "^4.17.0",

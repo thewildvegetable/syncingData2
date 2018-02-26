@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const socketio = require('socket.io');
+const xxh = require('xxhashjs');
 
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
 
@@ -41,10 +42,10 @@ const hardSquare = {
 };
 
 let clicked = false; // make true after the first click message to avoid making multiple setTimers
-// stores users who clicked the square
-let easyClick = {};
-let mediumClick = {};
-let hardClick = {};
+// stores users in each room
+const easyUsers = {};
+const mediumUsers = {};
+const hardUsers = {};
 
 // make a new square
 const newSquare = (difficulty) => {
@@ -104,39 +105,33 @@ const determineFirstSubmission = (difficulty) => {
 
   // send the new square to the users in the difficulty room
   io.sockets.in(`${difficulty}`).emit('draw', square);
-
-  // empty users
-  // assign square to the difficulty square
-  if (difficulty === 'easy') {
-    easyClick = {};
-  } else if (difficulty === 'medium') {
-    mediumClick = {};
-  } else {
-    // done as an else to avoid server dying from any odd difficulty value being passed in
-    hardClick = {};
-  }
 };
 
 const onJoined = (sock) => {
   const socket = sock;
 
-  socket.on('join', (difficulty) => {
-    socket.join(`${difficulty}`);
+  socket.on('join', (data) => {
+    socket.join(`${data.difficulty}`);
     // set the users name
-    socket.difficulty = difficulty;
-
-    console.log(`Joined ${difficulty} room`);
+    socket.difficulty = data.difficulty;
+    socket.name = data.name;
+    socket.score = 0;
+    socket.hash = xxh.h32(`${socket.id}${Date.now()}`, 0xDEADBEEF).toString(16);
+    console.log(`Joined ${data.difficulty} room`);
 
     let square;
 
-    // assign the difficulty square to square
-    if (difficulty === 'easy') {
+    // assign the difficulty square to square and store the user in the room list
+    if (data.difficulty === 'easy') {
       square = easySquare;
-    } else if (difficulty === 'medium') {
+      easyUsers[socket.hash] = socket;
+    } else if (data.difficulty === 'medium') {
       square = mediumSquare;
+      mediumUsers[socket.hash] = socket;
     } else {
       // done as an else to avoid server dying from any odd difficulty value being passed in
       square = hardSquare;
+      hardUsers[socket.hash] = socket;
     }
 
     // send the square
@@ -166,19 +161,12 @@ const onUpdate = (sock) => {
     if (data.x === square.x && data.y === square.y) {
       // set the time of the message being received and store the socket in users
       socket.time = new Date().getTime();
-
-      // assign the difficulty square to square
-      if (socket.difficulty === 'easy') {
-        easyClick[socket.name] = socket;
-      } else if (socket.difficulty === 'medium') {
-        mediumClick[socket.name] = socket;
-      } else {
-        // done as an else to avoid server dying from any odd difficulty value being passed in
-        hardClick[socket.name] = socket;
-      }
+      socket.score += 1;
 
       // send the point for clicking to the user
-      socket.emit('point', { score: 1, first: false });
+      io.sockets.in(`${socket.difficulty}`).emit('point', {
+        hash: socket.hash, name: socket.name, score: socket.score, first: false,
+      });
 
       // check if a click has been made, if not then set the timer for new squares
       if (!clicked) {
@@ -201,6 +189,17 @@ const onDisconnect = (sock) => {
     // remove user from the room
     // delete users.online[socket.name];
     socket.leave(`${socket.difficulty}`);
+    if (socket.difficulty === 'easy') {
+      delete easyUsers[socket.hash];
+    } else if (socket.difficulty === 'medium') {
+      delete mediumUsers[socket.hash];
+    } else {
+      // done as an else to avoid server dying from any odd difficulty value being passed in
+      delete hardUsers[socket.hash];
+    }
+
+    // send info to the players in the room to remove the player who left from the scoreboard
+    io.sockets.in(`${socket.difficulty}`).emit('leave', socket.hash);
   });
 };
 
