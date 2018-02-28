@@ -18,19 +18,22 @@
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script type="text/babel" >
         "use strict";
-        let users = {};
-        let socket;
+        let users = {};     //users in the current room
+        let socket;         //the websocket
         let ctx;
         let canvas;
-        let square;
-        let mouseDown = false;
-        let scoreHolder;
-        let easyButton;
-        let mediumButton;
-        let hardButton;
-        let quitButton;
-        let gameDiv;
-        let setUpDiv;
+        let square;         //the current square
+        let mouseDown = false;  //did the user click the square?
+        let scoreHolder;    //location of the scoreboard
+        let easyButton;     //easy difficulty button
+        let mediumButton;   //medium difficulty button
+        let hardButton;     //hard difficulty button
+        let quitButton;     //change difficulty button
+        let observeButton;  //click to activate/deactivate observer mode
+        let observe = false;    //is the user just observing?
+        let gameDiv;        //div containing the game
+        let setUpDiv;       //div containing the setup section
+        let userHash;       //user's hashcode
         
         //draw the square to the screen
         const draw = () => {
@@ -71,7 +74,8 @@
             var mouse = getMouse(e);
             
             //if the mouse wasnt already being held, check if the mouse is clicking the square
-            if(!mouseDown){
+            //don't allow clicks if in observer mode
+            if(!mouseDown && !observe){
                 //if the click was in the square, send it to the server for points;
                 if (mouse.x >= square.x && mouse.x <= square.x + square.width){
                     if (mouse.y >= square.y && mouse.y <= square.y + square.height){
@@ -137,6 +141,8 @@
                 
                 if(player.first){
                     p1.textContent += " " + player.name + " clicked first last round";
+                    //reset their first to avoid multiple firsts being displayed
+                    player.first = false;
                 }
                 scoreHolder.appendChild(p1);
             }
@@ -152,6 +158,7 @@
             mediumButton = document.querySelector('#mediumButton');
             hardButton = document.querySelector('#hardButton');
             quitButton = document.querySelector('#quitButton');
+            observeButton = document.querySelector('#observeButton');
             
             //get the containers
             gameDiv = document.querySelector('#game');
@@ -176,12 +183,50 @@
                 
                 //hook up exiting a room to the quit button
                 quitButton.onclick = quit;
+                
+                //hook up observer mode setup
+                observeButton.onclick = () => {
+                    observe = !observe
+                    
+                    //change text of the button
+                    if (observe){
+                        observeButton.textContent = "Play Mode";
+                    }
+                    else{
+                        observeButton.textContent = "Observer Mode";
+                    }
+                };
             });
             
             //hook up listeners
             //draw the square for the room
             socket.on('draw', (data) => {
                 handleMessage(data);
+            });
+            
+            //get the client's information
+            socket.on('joined', (data) => {
+                //if on observer mode, dont add yourself
+                if (observe){
+                    return;
+                }
+                
+                //store the client in the users array
+                userHash = data.hash;
+                users[data.hash] = data;
+                
+                //update scoreboard
+                scoreUpdate();
+            });
+            
+            //another user left the room
+            //get the user's information
+            socket.on('left', (data) => {
+                //remove the user from the array
+                delete users[data];
+                
+                //update the scoreboard
+                scoreUpdate();
             });
             
             //update the scoreboard
@@ -204,9 +249,10 @@
         <input id="easyButton" type='button' value='easy'/>
         <input id="mediumButton" type='button' value='medium'/>
         <input id="hardButton" type='button' value='hard'/>
+        <button id="observeButton" value="observe">Observer Mode</button>
     </div>
     <div id="game">
-        <button id="quitButton" value="hard">Change Difficulty</button>
+        <button id="quitButton" value="quit">Change Difficulty</button>
         <br>
         <br>
         <canvas id="mainCanvas" width="700" height="500">

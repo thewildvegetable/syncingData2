@@ -84,18 +84,46 @@ const io = socketio(app);
 
 // figure out which socket was the first to click the square
 const determineFirstSubmission = (difficulty) => {
-  // let firstSocket; // earliest click user
-
-  // foreach of users here
-  // if (user.time < firstSocket.time) {
-  // firstSocket = user;
-  // }
-
+  
+    let users;      //array of users in this room
+    
+    //get the user array for this room
+    if (difficulty === 'easy') {
+        users = easyUsers;
+     } else if (difficulty === 'medium') {
+        users = mediumUsers;
+     } else {
+        // done as an else to avoid server dying from any odd difficulty value being passed in
+        users = hardUsers;
+     }
+    let keys = Object.keys(users);
+    
+    //loop through and find who clicked first
+    let firstSocket = users[keys[0]]; // earliest click user
+    for (var i = 1; i < keys.length; i++){
+        let player = users[keys[i]];
+        
+        if (player.time < firstSocket.time){
+            //reset firstSocket's time to integer max
+            firstSocket.time = Number.MAX_SAFE_INTEGER;
+            firstSocket = player;
+        }
+        else{
+            //reset this user's time to integer max
+            player.time = Number.MAX_SAFE_INTEGER;
+        }
+    }
+    
+    //increment firstsocket's score
+    firstSocket.score += 1;
 
   // send the first person their points
-  // io.sockets.in(`${firstSocket.difficulty}`).emit('point', {
-  //      hash: firstSocket.hash, name: firstSocket.name, score: firstSocket.score, first: true,
-  // });
+  io.sockets.in(`${firstSocket.difficulty}`).emit('point', {
+        hash: firstSocket.hash, name: firstSocket.name, score: firstSocket.score, first: true,
+  });
+    
+    //reset firstSocket's time
+    firstSocket.time = Number.MAX_SAFE_INTEGER;
 
   // generate new square
   const square = newSquare(difficulty);
@@ -123,6 +151,26 @@ const determineFirstSubmission = (difficulty) => {
   io.sockets.in(`${difficulty}`).emit('draw', square);
 };
 
+// remove the user from their current room and send that info to the server
+const leaveRoom = (sock) => {
+  const socket = sock;
+
+  // remove user from the room
+  // delete users.online[socket.name];
+  socket.leave(`${socket.difficulty}`);
+  if (socket.difficulty === 'easy') {
+    delete easyUsers[socket.hash];
+  } else if (socket.difficulty === 'medium') {
+    delete mediumUsers[socket.hash];
+  } else {
+    // done as an else to avoid server dying from any odd difficulty value being passed in
+    delete hardUsers[socket.hash];
+  }
+
+  // send the departed user's hash to clients
+  io.sockets.in(`${socket.difficulty}`).emit('left', socket.hash);
+};
+
 const onJoined = (sock) => {
   const socket = sock;
 
@@ -134,6 +182,7 @@ const onJoined = (sock) => {
     socket.name = data.name;
     socket.score = 0;
     socket.hash = xxh.h32(`${socket.id}${Date.now()}`, 0xDEADBEEF).toString(16);
+      socket.time = Number.MAX_SAFE_INTEGER;
     console.log(`Joined ${data.difficulty} room`);
 
     let square;
@@ -153,6 +202,11 @@ const onJoined = (sock) => {
 
     // send the square
     socket.emit('draw', square);
+
+    // send the user themself
+    socket.emit('joined', {
+      hash: socket.hash, name: socket.name, score: socket.score, first: false,
+    });
   });
 };
 
@@ -208,23 +262,20 @@ const onUpdate = (sock) => {
       socket.emit('draw', square);
     }
   });
+
+  // handle user changing difficulty
+  socket.on('quit', () => {
+    // call the leaveRoom function
+    leaveRoom(socket);
+  });
 };
 
 const onDisconnect = (sock) => {
   const socket = sock;
 
   socket.on('disconnect', () => {
-    // remove user from the room
-    // delete users.online[socket.name];
-    socket.leave(`${socket.difficulty}`);
-    if (socket.difficulty === 'easy') {
-      delete easyUsers[socket.hash];
-    } else if (socket.difficulty === 'medium') {
-      delete mediumUsers[socket.hash];
-    } else {
-      // done as an else to avoid server dying from any odd difficulty value being passed in
-      delete hardUsers[socket.hash];
-    }
+    // call the leaveRoom function
+    leaveRoom(socket);
   });
 };
 
