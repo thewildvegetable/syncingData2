@@ -1,22 +1,28 @@
+// initialize add ons
 const http = require('http');
 const fs = require('fs');
 const socketio = require('socket.io');
 const xxh = require('xxhashjs');
 
+// get the port
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
 
+// read in the webpage
 const index = fs.readFileSync(`${__dirname}/../client/index.html`);
 
+// send the client the webpage
 const onRequest = (request, response) => {
   response.writeHead(200, { 'Content-Type': 'text/html' });
   response.write(index);
   response.end();
 };
 
+// initialize the server
 const app = http.createServer(onRequest).listen(port);
 
 console.log(`listening at 127.0.0.1: ${port}`);
 
+// make the initial difficulty squares
 const easySquare = {
   x: Math.floor((Math.random() * (600)) + 1),
   y: Math.floor((Math.random() * (400)) + 1),
@@ -41,7 +47,11 @@ const hardSquare = {
   color: 'red',
 };
 
-let clicked = false; // make true after the first click message to avoid making multiple setTimers
+// make true after the first click message to avoid making multiple setTimers for each room
+let easyClicked = false;
+let mediumClicked = false;
+let hardClicked = false;
+
 // stores users in each room
 const easyUsers = {};
 const mediumUsers = {};
@@ -61,6 +71,7 @@ const newSquare = (difficulty) => {
     square = hardSquare;
   }
 
+  // set new x, y and color values for the square
   square.x = Math.floor((Math.random() * (700 - square.width)) + 1);
   square.y = Math.floor((Math.random() * (500 - square.height)) + 1);
   square.color = `rgb(${Math.floor((Math.random() * 255) + 1)},${Math.floor((Math.random() * 255) + 1)},${Math.floor((Math.random() * 255) + 1)})`;
@@ -68,9 +79,10 @@ const newSquare = (difficulty) => {
   return square;
 };
 
+// start the websockets
 const io = socketio(app);
 
-// figure out which socket was the first submission
+// figure out which socket was the first to click the square
 const determineFirstSubmission = (difficulty) => {
   // let firstSocket; // earliest click user
 
@@ -81,26 +93,30 @@ const determineFirstSubmission = (difficulty) => {
 
 
   // send the first person their points
-  // firstSocket.emit('point', { score: 1, first: true });
+  // io.sockets.in(`${firstSocket.difficulty}`).emit('point', {
+  //      hash: firstSocket.hash, name: firstSocket.name, score: firstSocket.score, first: true,
+  // });
 
   // generate new square
   const square = newSquare(difficulty);
-  clicked = false;
 
   // assign square to the difficulty square
   if (difficulty === 'easy') {
     easySquare.x = square.x;
     easySquare.y = square.y;
     easySquare.color = square.color;
+    easyClicked = false;
   } else if (difficulty === 'medium') {
     mediumSquare.x = square.x;
     mediumSquare.y = square.y;
     mediumSquare.color = square.color;
+    mediumClicked = false;
   } else {
     // done as an else to avoid server dying from any odd difficulty value being passed in
     hardSquare.x = square.x;
     hardSquare.y = square.y;
     hardSquare.color = square.color;
+    hardClicked = false;
   }
 
   // send the new square to the users in the difficulty room
@@ -112,7 +128,8 @@ const onJoined = (sock) => {
 
   socket.on('join', (data) => {
     socket.join(`${data.difficulty}`);
-    // set the users name
+
+    // set the user's stats for the new room
     socket.difficulty = data.difficulty;
     socket.name = data.name;
     socket.score = 0;
@@ -168,9 +185,20 @@ const onUpdate = (sock) => {
         hash: socket.hash, name: socket.name, score: socket.score, first: false,
       });
 
-      // check if a click has been made, if not then set the timer for new squares
-      if (!clicked) {
-        clicked = true;
+      // check if a click has been made in the current room
+      // if not then set the timer for new squares
+      if (socket.difficulty === 'easy' && !easyClicked) {
+        easyClicked = true;
+        setTimeout(() => {
+          determineFirstSubmission(socket.difficulty);
+        }, 500);
+      } else if (socket.difficulty === 'medium' && !mediumClicked) {
+        mediumClicked = true;
+        setTimeout(() => {
+          determineFirstSubmission(socket.difficulty);
+        }, 500);
+      } else if (socket.difficulty === 'hard' && !hardClicked) {
+        hardClicked = true;
         setTimeout(() => {
           determineFirstSubmission(socket.difficulty);
         }, 500);
@@ -197,9 +225,6 @@ const onDisconnect = (sock) => {
       // done as an else to avoid server dying from any odd difficulty value being passed in
       delete hardUsers[socket.hash];
     }
-
-    // send info to the players in the room to remove the player who left from the scoreboard
-    io.sockets.in(`${socket.difficulty}`).emit('leave', socket.hash);
   });
 };
 

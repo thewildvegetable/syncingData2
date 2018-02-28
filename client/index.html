@@ -10,7 +10,7 @@
              box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
         }
         
-        #quitButton {
+        #game {
             display: none;
         }
     </style>
@@ -18,33 +18,39 @@
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script type="text/babel" >
         "use strict";
-        const user = `user${Math.floor((Math.random()*1000) + 1)}`;
+        let users = {};
         let socket;
         let ctx;
         let canvas;
         let square;
         let mouseDown = false;
-        let score = 0;
         let scoreHolder;
         let easyButton;
         let mediumButton;
         let hardButton;
         let quitButton;
+        let gameDiv;
+        let setUpDiv;
         
+        //draw the square to the screen
         const draw = () => {
+            //clear the canvas
             ctx.fillStyle = "white";
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            //draw the square
             ctx.fillStyle = square.color;
             ctx.fillRect(square.x, square.y, square.width, square.height);
         };
         
+        //update with the newest square
         const handleMessage = (data) => {
             square = data;
             
             //turn clicking back on
             mouseDown = false;
             
+            //redraw
             draw();
         };
         
@@ -59,6 +65,7 @@
             return mouse;
         }
         
+        //on click, check if the square was clicked
         const doMousedown = (e) => {
             //get location of mouse
             var mouse = getMouse(e);
@@ -77,49 +84,78 @@
             
         };
 
+        //join a game room
         const connect = (e) => {
-            //get the difficulty
+            //get the difficulty and the player's name
             let difficulty = e.target.value;
+            let name = document.querySelector("#username").value;
+            
+            if(!name) {
+                name = 'unknown';
+            }
             
             //send join message        
-            socket.emit('join', difficulty);
+            socket.emit('join', { "name": name, "difficulty": difficulty });
             
-            //hide the difficulty buttons
-            easyButton.style.display = mediumButton.style.display = hardButton.style.display = "none";
+            //hide the difficulty selection screen
+            setUpDiv.style.display = "none";
             
-            //show a quit button
-            quitButton.style.display = "inline";
+            //reset the scoreboard
+            users = {};
+            scoreHolder.innerHTML = "";
+            
+            //show the game
+            gameDiv.style.display = "inline";
         };
 
+        //exit the current game room and return to the difficulty selection screen
         const quit = () => {
-            //show the difficulty buttons
-            easyButton.style.display = mediumButton.style.display = hardButton.style.display = "inline";
+            //show the difficulty selection screen
+            setUpDiv.style.display = "inline";
             
-            //hide the quit button
-            quitButton.style.display = "none";
+            //hide the game
+            gameDiv.style.display = "none";
             
             //send quit message to server
             socket.emit('quit', square);
-            
-            //move the square offscreen to hide it and prevent clicks
-            square.x = canvas.width + 200;
-            draw();
-            
-            //reset score
-            score = 0;
-            scoreHolder.textContent = "Score: " + score;
         };
         
+        //update the scoreboard under the canvas
+        const scoreUpdate = () => {
+            //empty the scoreboard
+            scoreHolder.innerHTML = "";
+            
+            //loop through the users and place the scoreboard in
+            let scoreBoard = Object.keys(users);
+            
+            for(let i = 0; i < scoreBoard.length; i++){
+                let player = users[scoreBoard[i]];
+                
+                //create the html element for this player's score
+                let p1 = document.createElement("p");
+                p1.textContent = player.name + ": " + player.score + " points";
+                
+                if(player.first){
+                    p1.textContent += " " + player.name + " clicked first last round";
+                }
+                scoreHolder.appendChild(p1);
+            }
+        };
+        
+        //initialize the page
         const init = () => {
             //get the score holder
             scoreHolder = document.querySelector('#score');
-            scoreHolder.textContent = "Score: " + score;
             
             //get the buttons
             easyButton = document.querySelector('#easyButton');
             mediumButton = document.querySelector('#mediumButton');
             hardButton = document.querySelector('#hardButton');
             quitButton = document.querySelector('#quitButton');
+            
+            //get the containers
+            gameDiv = document.querySelector('#game');
+            setUpDiv = document.querySelector('#setUp');
             
             // set up canvas stuff
 			canvas = document.querySelector('canvas');
@@ -133,26 +169,27 @@
             socket.on('connect', () => {
                 console.log('connecting');
                 
-                //hook up connection to the buttons
+                //hook up join event to the difficulty buttons
                 easyButton.onclick = mediumButton.onclick = hardButton.onclick = (e) => {
                     connect(e);
                 };
+                
+                //hook up exiting a room to the quit button
                 quitButton.onclick = quit;
             });
             
             //hook up listeners
+            //draw the square for the room
             socket.on('draw', (data) => {
                 handleMessage(data);
             });
             
+            //update the scoreboard
             socket.on('point', (data) => {
-                score += data.score;
-                scoreHolder.textContent = "Score: " + score;
+                //update the scores at the user value
+                users[data.hash] = data;
                 
-                //tell user they were first click
-                if (data.first){
-                    scoreHolder.textContent += ". You were the first to click the square last round!";
-                }
+                scoreUpdate();
             });
         };
         
@@ -160,14 +197,23 @@
     </script>
 </head>
 <body>
-    <button id="easyButton" value="easy">Easy</button>
-    <button id="mediumButton" value="medium">Medium</button>
-    <button id="hardButton" value="hard">Hard</button>
-    <button id="quitButton" value="hard">Change Difficulty</button>
-    <p id="score"></p>
-    <canvas id="mainCanvas" width="700" height="500">
-	Get a real browser!
-	</canvas>
-    
+    <div id="setUp">
+        <label for="user">Username:</label>
+        <input id="username" name="user" type="text"/>
+        <label for="Difficulty">Difficulty:</label>
+        <input id="easyButton" type='button' value='easy'/>
+        <input id="mediumButton" type='button' value='medium'/>
+        <input id="hardButton" type='button' value='hard'/>
+    </div>
+    <div id="game">
+        <button id="quitButton" value="hard">Change Difficulty</button>
+        <br>
+        <br>
+        <canvas id="mainCanvas" width="700" height="500">
+        Get a real browser!
+        </canvas>
+        <p>Scoreboard:</p>
+        <div id="score"></div>
+    </div>
 </body>
 </html>
