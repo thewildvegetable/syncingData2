@@ -2,20 +2,62 @@
 <html lang="en">
 <head>
     <style>
+        body{
+            background-color: rgb(220, 220, 220);
+            font-size: 30px;
+        }
+        
+        #setUp{
+            text-align: center;
+        }
+        
+        input{
+            margin-left: 3px;
+            margin-right: 6px;
+            font-size: 30px;
+        }
+        
+        button{
+            margin-left: 3px;
+            margin-right: 6px;
+            font-size: 30px;
+        }
+        
         #mainCanvas {
              background: #ffffff;
              z-index: 0;
              left: 10px;
              top: 10px;
+            right: 10px;
              box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+            float: left;
         }
         
         #game {
             display: none;
         }
         
+        #instructions{
+            clear: both;
+            padding-top: 1px;
+        }
+        
+        #instructions p{
+            height: 8px;
+        }
+        
+        #score p{
+            word-wrap: break-word;
+        }
+        
         .first{
             color: red;
+        }
+        
+        .divider{
+            display:inline-block;
+            margin-left: 10px;
+            padding-left: 10px;
         }
     </style>
     <script src="/socket.io/socket.io.js"></script>
@@ -283,7 +325,7 @@
                 p1.textContent = player.name + ": " + player.score + " points";
                 
                 if(player.first){
-                    p1.textContent += " " + player.name + " clicked first last round";
+                    p1.textContent += ". " + player.name + " clicked first last round";
                     
                     //add the first class
                     p1.classList.add("first");
@@ -412,6 +454,9 @@
         <input id="mediumButton" type='button' value='medium'/>
         <input id="hardButton" type='button' value='hard'/>
         <button id="observeButton" value="observe">Observer Mode</button>
+        <br>
+        <p>Pick a difficulty</p>
+        <p>Observer Mode: Watch the game without playing</p>
     </div>
     <div id="game">
         <button id="quitButton" value="quit">Change Difficulty</button>
@@ -420,8 +465,17 @@
         <canvas id="mainCanvas" width="700" height="500">
         Get a real browser!
         </canvas>
-        <p>Scoreboard:</p>
-        <div id="score"></div>
+        <div class="divider">
+            <p>Scoreboard:</p>
+            <div id="score"></div>
+        </div>
+        
+    </div>
+    <div id="instructions">
+        <p>How to play:</p>
+        <p>Click the square on the canvas for a point.</p>
+        <p>Whoever clicks the square first gets an extra point.</p>
+        <p>Try to get the highest score in the room</p>
     </div>
 </body>
 </html>
