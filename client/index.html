@@ -13,6 +13,10 @@
         #game {
             display: none;
         }
+        
+        .first{
+            color: red;
+        }
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
@@ -34,6 +38,135 @@
         let gameDiv;        //div containing the game
         let setUpDiv;       //div containing the setup section
         let userHash;       //user's hashcode
+        let particleEffect; //stores the set interval for the particle effect
+        let particleLocation;   //stores the location to emit the particle effect
+
+        //particle code info originally from
+        // author: Tony Jefferson
+        // last modified: 10/7/2015
+        function getRandom(min, max) {
+            return Math.random() * (max - min) + min;
+        };
+        
+        function Emitter(){
+            // public
+            this.numParticles = 25;
+            this.useCircles = true;
+            this.useSquares = false;
+            this.xRange = 4;
+            this.yRange = 4;
+            this.minXspeed = -1;
+            this.maxXspeed = 1;
+            this.minYspeed = 2;
+            this.maxYspeed = 4;
+            this.startRadius = 4;
+            this.expansionRate = 0.3
+            this.decayRate = 2.5;
+            this.lifetime = 100;
+            this.red = 0;
+            this.green = 0;
+            this.blue = 0;
+
+            // private
+            this._particles = undefined;
+        };
+
+        // "public" methods
+        var p=Emitter.prototype;
+
+        p.createParticles = function(emitterPoint){
+            // initialize particle array
+            this._particles = [];
+
+            // create exhaust particles
+            for(var i=0; i< this.numParticles; i++){
+                // create a particle object and add to array
+                var p = {};
+                this._particles.push(_initParticle(this, p, emitterPoint));
+            }
+
+            // log the particles
+            //console.log(this._particles );
+        };
+
+        p.updateAndDraw = function(ctx, emitterPoint){
+                /* move and draw particles */
+                // each frame, loop through particles array
+                // move each particle down screen, and slightly left or right
+                // make it bigger, and fade it out
+                // increase its age so we know when to recycle it
+
+                for(var i=0;i<this._particles.length;i++){
+                    var p = this._particles[i];
+
+                    p.age += this.decayRate;
+                    p.r += this.expansionRate;
+                    p.x += p.xSpeed
+                    p.y += p.ySpeed
+                    var alpha = 1 - p.age/this.lifetime;
+
+                    if(this.useSquares){
+                        // fill a rectangle	
+                        ctx.fillStyle = "rgba(" + this.red + "," + this.green + "," + 			
+                        this.blue + "," + alpha + ")"; 
+                        ctx.fillRect(p.x, p.y, p.r, p.r);
+                        // note: this code is easily modified to draw images
+                    }
+
+                    if(this.useCircles){
+                        // fill a circle
+                        ctx.fillStyle = "rgba(" + this.red + "," + this.green + "," + 			
+                        this.blue + "," + alpha + ")"; 
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, Math.PI * 2, false);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+
+                    // if the particle is too old, recycle it
+                    if(p.age >= this.lifetime){
+                        _initParticle(this, p, emitterPoint);
+                    }		
+                } // end for loop of this._particles
+        }; // end updateAndDraw()
+
+        // "private" method
+        function _initParticle(obj, p, emitterPoint){
+
+            // give it a random age when first created
+            p.age = getRandom(0,obj.lifetime);
+
+            p.x = emitterPoint.x + getRandom(-obj.xRange, obj.xRange);
+            p.y = emitterPoint.y + getRandom(0, obj.yRange);
+            p.r = getRandom(obj.startRadius/2, obj.startRadius); // radius
+            p.xSpeed = getRandom(obj.minXspeed, obj.maxXspeed);
+            p.ySpeed = getRandom(obj.minYspeed, obj.maxYspeed);
+            return p;
+        };
+
+        //End of borrowed particle code
+        
+        //create a pulsar and store it in particle effect. have it draw to the screen
+        const createParticleEffect = () =>{
+            particleEffect = new Emitter();
+            particleEffect.red = 255;
+            particleEffect.green = Math.floor(getRandom(0,255));
+            particleEffect.blue = Math.floor(getRandom(0,255));
+            particleEffect.minXspeed = particleEffect.minYspeed = -0.25;
+            particleEffect.maxXspeed = particleEffect.maxYspeed = 0.25;
+            particleEffect.lifetime = 500;
+            particleEffect.expansionRate = 0.05;
+            particleEffect.numParticles = 50;
+            particleEffect.xRange = 1;
+            particleEffect.yRange = 1;
+            particleEffect.useCircles = false;
+            particleEffect.useSquares = true;
+            
+            //set the particle effect's location
+            particleLocation = {x: square.x + square.width/2, y: square.y + square.height/2};
+            particleEffect.createParticles(particleLocation);
+        }
         
         //draw the square to the screen
         const draw = () => {
@@ -44,6 +177,14 @@
             //draw the square
             ctx.fillStyle = square.color;
             ctx.fillRect(square.x, square.y, square.width, square.height);
+            
+            //if particleEffect exists, draw it
+            if(particleEffect){
+                particleEffect.updateAndDraw(ctx, particleLocation);
+            }
+            
+            //RequestAnimationFrame added by me
+            requestAnimationFrame(draw);
         };
         
         //update with the newest square
@@ -52,9 +193,6 @@
             
             //turn clicking back on
             mouseDown = false;
-            
-            //redraw
-            draw();
         };
         
         // Function Name: getMouse()
@@ -82,6 +220,11 @@
                         socket.emit('click', square);
                         //prevent extra clicks
                         mouseDown = true;
+                        
+                        //if a particle effect doesnt exist, spawn one
+                        if(!particleEffect){
+                            createParticleEffect();
+                        }
                     }
                 }
             }
@@ -141,6 +284,10 @@
                 
                 if(player.first){
                     p1.textContent += " " + player.name + " clicked first last round";
+                    
+                    //add the first class
+                    p1.classList.add("first");
+                    
                     //reset their first to avoid multiple firsts being displayed
                     player.first = false;
                 }
@@ -202,6 +349,16 @@
             //draw the square for the room
             socket.on('draw', (data) => {
                 handleMessage(data);
+                
+                //draw the new square
+                draw();
+                
+                //make a timeout to delete the particle effect if there is one
+                if(particleEffect){
+                    setTimeout( () => {
+                        particleEffect = null;
+                    }, 1000);
+                }
             });
             
             //get the client's information
@@ -233,6 +390,11 @@
             socket.on('point', (data) => {
                 //update the scores at the user value
                 users[data.hash] = data;
+                
+                //if first, create a particle effect at the location
+                if(data.first && !particleEffect){
+                    createParticleEffect();
+                }
                 
                 scoreUpdate();
             });
